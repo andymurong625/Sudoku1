@@ -124,14 +124,16 @@ export default function App() {
     setSelectedCell([row, col]);
   };
 
-  const handleNumberInput = useCallback((num: number) => {
+  const handleNumberInput = useCallback((num: number, forceMark?: boolean) => {
     if (!selectedCell || gameState !== 'playing' || isPaused) return;
     const [row, col] = selectedCell;
 
     if (initialBoard[row][col] !== null) return;
     if (board[row][col] !== null) return;
 
-    if (isMarkMode) {
+    const useMark = forceMark !== undefined ? forceMark : isMarkMode;
+
+    if (useMark) {
       const newNotes = [...notes];
       const cellNotes = newNotes[row][col];
       if (cellNotes.includes(num)) {
@@ -245,14 +247,6 @@ export default function App() {
     else if (isSameValue) bgColor = 'bg-indigo-100';
     else if (isRelated) bgColor = 'bg-slate-50';
 
-    const borderClasses = `
-      border-slate-200
-      ${col % 3 === 2 && col !== 8 ? 'border-r-2 border-r-slate-400' : 'border-r'}
-      ${row % 3 === 2 && row !== 8 ? 'border-b-2 border-b-slate-400' : 'border-b'}
-      ${col === 0 ? 'border-l' : ''}
-      ${row === 0 ? 'border-t' : ''}
-    `;
-
     return (
       <div
         key={`${row}-${col}`}
@@ -260,7 +254,7 @@ export default function App() {
         className={`
           relative flex items-center justify-center text-xl sm:text-2xl font-medium cursor-pointer
           transition-colors duration-100 aspect-square
-          ${borderClasses} ${bgColor}
+          ${bgColor}
           ${isInitial ? 'text-slate-900 font-bold' : 'text-indigo-600'}
         `}
       >
@@ -361,11 +355,17 @@ export default function App() {
                 </button>
               </div>
 
-              <div className="relative aspect-square w-full max-w-[500px] mx-auto bg-white rounded-xl shadow-xl overflow-hidden border-2 border-slate-400">
-                <div className="grid grid-cols-9 h-full">
-                  {Array.from({ length: 9 }).map((_, r) =>
-                    Array.from({ length: 9 }).map((_, c) => renderCell(r, c))
-                  )}
+              <div className="relative aspect-square w-full max-w-[500px] mx-auto bg-slate-400 rounded-xl shadow-xl overflow-hidden border-2 border-slate-400">
+                <div className="grid grid-cols-3 grid-rows-3 gap-1 h-full">
+                  {[0, 1, 2].map(br => (
+                    [0, 1, 2].map(bc => (
+                      <div key={`block-${br}-${bc}`} className="grid grid-cols-3 grid-rows-3 gap-px bg-slate-200">
+                        {[0, 1, 2].map(ir => (
+                          [0, 1, 2].map(ic => renderCell(br * 3 + ir, bc * 3 + ic))
+                        ))}
+                      </div>
+                    ))
+                  ))}
                 </div>
 
                 <AnimatePresence>
@@ -411,7 +411,7 @@ export default function App() {
                     return (
                       <button
                         key={num}
-                        onClick={() => handleNumberInput(num)}
+                        onClick={() => handleNumberInput(num, false)}
                         className={`
                           aspect-square flex items-center justify-center rounded-lg shadow-sm border transition-all active:scale-95 text-xl font-bold
                           ${isAutoHighlighted 
@@ -438,19 +438,7 @@ export default function App() {
                         return (
                           <button
                             key={`mark-${num}`}
-                            onClick={() => {
-                              if (!selectedCell) return;
-                              const [r, c] = selectedCell;
-                              if (board[r][c] !== null) return;
-                              const newNotes = [...notes];
-                              const cellNotes = newNotes[r][c];
-                              if (cellNotes.includes(num)) {
-                                newNotes[r][c] = cellNotes.filter(n => n !== num);
-                              } else {
-                                newNotes[r][c] = [...cellNotes, num].sort();
-                              }
-                              setNotes(newNotes);
-                            }}
+                            onClick={() => handleNumberInput(num, true)}
                             className={`
                               aspect-square flex items-center justify-center rounded-lg border transition-all active:scale-95 text-sm font-medium
                               ${isMarked 
