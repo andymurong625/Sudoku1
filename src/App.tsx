@@ -15,6 +15,9 @@ export default function App() {
   const [mistakes, setMistakes] = useState(0);
   const [showMistakeAnim, setShowMistakeAnim] = useState(false);
   const [hintedCell, setHintedCell] = useState<[number, number] | null>(null);
+  const [isMarkMode, setIsMarkMode] = useState(false);
+  const [notes, setNotes] = useState<number[][][]>(Array.from({ length: 9 }, () => Array.from({ length: 9 }, () => [])));
+  const [isHintActive, setIsHintActive] = useState(false);
 
   // Load game from localStorage on mount
   useEffect(() => {
@@ -66,28 +69,13 @@ export default function App() {
     setIsPaused(false);
     setSelectedCell(null);
     setHintedCell(null);
+    setIsHintActive(false);
+    setNotes(Array.from({ length: 9 }, () => Array.from({ length: 9 }, () => [])));
   };
 
-  const provideHint = () => {
+  const toggleHint = () => {
     if (gameState !== 'playing' || isPaused) return;
-    
-    const emptyCells: [number, number][] = [];
-    for (let r = 0; r < 9; r++) {
-      for (let c = 0; c < 9; c++) {
-        if (board[r][c] === null) {
-          emptyCells.push([r, c]);
-        }
-      }
-    }
-
-    if (emptyCells.length > 0) {
-      const randomCell = emptyCells[Math.floor(Math.random() * emptyCells.length)];
-      setHintedCell(randomCell);
-      setSelectedCell(randomCell);
-      
-      // Clear hint after 3 seconds
-      setTimeout(() => setHintedCell(null), 3000);
-    }
+    setIsHintActive(!isHintActive);
   };
 
   useEffect(() => {
@@ -120,11 +108,30 @@ export default function App() {
     const [row, col] = selectedCell;
 
     if (initialBoard[row][col] !== null) return;
+    if (board[row][col] !== null) return;
+
+    if (isMarkMode) {
+      const newNotes = [...notes];
+      const cellNotes = newNotes[row][col];
+      if (cellNotes.includes(num)) {
+        newNotes[row][col] = cellNotes.filter(n => n !== num);
+      } else {
+        newNotes[row][col] = [...cellNotes, num].sort();
+      }
+      setNotes(newNotes);
+      return;
+    }
 
     if (solution[row][col] === num) {
       const newBoard = board.map(r => [...r]);
       newBoard[row][col] = num;
       setBoard(newBoard);
+
+      // Clear notes for this cell and related cells
+      const newNotes = [...notes];
+      newNotes[row][col] = [];
+      // Optional: remove this number from notes in same row/col/box
+      setNotes(newNotes);
 
       // Check if won
       const isWon = newBoard.every((r, ri) => r.every((c, ci) => c === solution[ri][ci]));
@@ -136,7 +143,7 @@ export default function App() {
       setMistakes(newMistakes);
       setShowMistakeAnim(true);
       setTimeout(() => setShowMistakeAnim(false), 500);
-      
+
       if (newMistakes >= 10) {
         setGameState('lost');
       }
@@ -165,16 +172,47 @@ export default function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleNumberInput, selectedCell]);
 
+  const getAutoHighlightNumber = () => {
+    if (!selectedCell) return null;
+    const [row, col] = selectedCell;
+    if (board[row][col] !== null) return null;
+
+    // Check row
+    const rowCells = board[row];
+    const missingInRow = [1, 2, 3, 4, 5, 6, 7, 8, 9].filter(n => !rowCells.includes(n));
+    if (missingInRow.length === 1) return missingInRow[0];
+
+    // Check col
+    const colCells = board.map(r => r[col]);
+    const missingInCol = [1, 2, 3, 4, 5, 6, 7, 8, 9].filter(n => !colCells.includes(n));
+    if (missingInCol.length === 1) return missingInCol[0];
+
+    // Check box
+    const startRow = row - (row % 3);
+    const startCol = col - (col % 3);
+    const boxCells = [];
+    for (let i = 0; i < 3; i++) {
+      for (let j = 0; j < 3; j++) {
+        boxCells.push(board[startRow + i][startCol + j]);
+      }
+    }
+    const missingInBox = [1, 2, 3, 4, 5, 6, 7, 8, 9].filter(n => !boxCells.includes(n));
+    if (missingInBox.length === 1) return missingInBox[0];
+
+    return null;
+  };
+
   const renderCell = (row: number, col: number) => {
     const value = board[row][col];
     const isInitial = initialBoard[row][col] !== null;
     const isSelected = selectedCell?.[0] === row && selectedCell?.[1] === col;
     const isHinted = hintedCell?.[0] === row && hintedCell?.[1] === col;
-    
+    const cellNotes = notes[row][col];
+
     // Highlight related cells
     const isRelated = selectedCell && (
-      selectedCell[0] === row || 
-      selectedCell[1] === col || 
+      selectedCell[0] === row ||
+      selectedCell[1] === col ||
       (Math.floor(selectedCell[0] / 3) === Math.floor(row / 3) && Math.floor(selectedCell[1] / 3) === Math.floor(col / 3))
     );
 
@@ -182,7 +220,7 @@ export default function App() {
 
     let bgColor = 'bg-white';
     if (isSelected) bgColor = 'bg-indigo-200';
-    else if (isHinted) bgColor = 'bg-amber-100 animate-pulse';
+    else if (isHinted || (isHintActive && isSelected)) bgColor = 'bg-amber-100 animate-pulse';
     else if (isSameValue) bgColor = 'bg-indigo-100';
     else if (isRelated) bgColor = 'bg-slate-50';
 
@@ -205,7 +243,19 @@ export default function App() {
           ${isInitial ? 'text-slate-900 font-bold' : 'text-indigo-600'}
         `}
       >
-        {value}
+        {value !== null ? (
+          value
+        ) : isHintActive && isSelected ? (
+          <span className="text-amber-500 opacity-50">{solution[row][col]}</span>
+        ) : (
+          <div className="grid grid-cols-3 grid-rows-3 w-full h-full p-0.5">
+            {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(n => (
+              <div key={n} className="flex items-center justify-center text-[8px] sm:text-[10px] leading-none text-slate-400">
+                {cellNotes.includes(n) ? n : ''}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     );
   };
@@ -333,32 +383,98 @@ export default function App() {
                 </AnimatePresence>
               </div>
 
-              <div className="grid grid-cols-9 gap-2 max-w-[500px] mx-auto">
-                {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
-                  <button
-                    key={num}
-                    onClick={() => handleNumberInput(num)}
-                    className="aspect-square flex items-center justify-center bg-white rounded-lg shadow-sm border border-slate-200 text-xl font-bold text-indigo-600 hover:bg-indigo-50 hover:border-indigo-300 transition-all active:scale-95"
-                  >
-                    {num}
-                  </button>
-                ))}
+              <div className="space-y-4 max-w-[500px] mx-auto">
+                <div className="grid grid-cols-9 gap-2">
+                  {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => {
+                    const isAutoHighlighted = getAutoHighlightNumber() === num;
+                    return (
+                      <button
+                        key={num}
+                        onClick={() => handleNumberInput(num)}
+                        className={`
+                          aspect-square flex items-center justify-center rounded-lg shadow-sm border transition-all active:scale-95 text-xl font-bold
+                          ${isAutoHighlighted 
+                            ? 'bg-amber-100 border-amber-400 text-amber-700 ring-2 ring-amber-200' 
+                            : 'bg-white border-slate-200 text-indigo-600 hover:bg-indigo-50 hover:border-indigo-300'}
+                        `}
+                      >
+                        {num}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <AnimatePresence>
+                  {isMarkMode && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                      className="grid grid-cols-9 gap-2 overflow-hidden"
+                    >
+                      {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => {
+                        const isMarked = selectedCell && notes[selectedCell[0]][selectedCell[1]].includes(num);
+                        return (
+                          <button
+                            key={`mark-${num}`}
+                            onClick={() => {
+                              if (!selectedCell) return;
+                              const [r, c] = selectedCell;
+                              if (board[r][c] !== null) return;
+                              const newNotes = [...notes];
+                              const cellNotes = newNotes[r][c];
+                              if (cellNotes.includes(num)) {
+                                newNotes[r][c] = cellNotes.filter(n => n !== num);
+                              } else {
+                                newNotes[r][c] = [...cellNotes, num].sort();
+                              }
+                              setNotes(newNotes);
+                            }}
+                            className={`
+                              aspect-square flex items-center justify-center rounded-lg border transition-all active:scale-95 text-sm font-medium
+                              ${isMarked 
+                                ? 'bg-indigo-100 border-indigo-400 text-indigo-700 ring-1 ring-indigo-200' 
+                                : 'bg-slate-100 border-slate-200 text-slate-500 hover:bg-slate-200'}
+                            `}
+                          >
+                            {num}
+                          </button>
+                        );
+                      })}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
 
-              <div className="flex justify-center items-center space-x-8 pt-4">
+              <div className="flex justify-center items-center space-x-4 pt-4">
                 <button
-                  onClick={provideHint}
-                  className="flex items-center space-x-2 text-slate-500 hover:text-amber-600 transition-colors font-medium"
+                  onClick={() => setIsMarkMode(!isMarkMode)}
+                  className={`flex items-center space-x-2 px-4 py-2 rounded-full transition-all font-medium ${
+                    isMarkMode 
+                      ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-100' 
+                      : 'bg-white text-slate-500 border border-slate-200 hover:border-indigo-300'
+                  }`}
                 >
                   <HelpCircle className="w-4 h-4" />
-                  <span>提示 (Hint)</span>
+                  <span>Mark</span>
+                </button>
+                <button
+                  onClick={toggleHint}
+                  className={`flex items-center space-x-2 px-4 py-2 rounded-full transition-all font-medium ${
+                    isHintActive 
+                      ? 'bg-amber-500 text-white shadow-lg shadow-amber-100' 
+                      : 'bg-white text-slate-500 border border-slate-200 hover:border-amber-300'
+                  }`}
+                >
+                  <HelpCircle className="w-4 h-4" />
+                  <span>Hint</span>
                 </button>
                 <button
                   onClick={() => startGame(difficulty)}
-                  className="flex items-center space-x-2 text-slate-500 hover:text-indigo-600 transition-colors font-medium"
+                  className="flex items-center space-x-2 px-4 py-2 bg-white text-slate-500 border border-slate-200 rounded-full hover:border-indigo-300 transition-all font-medium"
                 >
                   <RotateCcw className="w-4 h-4" />
-                  <span>New Game</span>
+                  <span>Reset</span>
                 </button>
               </div>
             </motion.div>
@@ -438,12 +554,20 @@ export default function App() {
                 </div>
               </div>
 
-              <button
-                onClick={() => setGameState('menu')}
-                className="w-full max-w-xs py-4 bg-indigo-600 text-white rounded-2xl font-bold shadow-lg shadow-indigo-200 hover:bg-indigo-700 transition-all active:scale-95"
-              >
-                Play Again
-              </button>
+              <div className="flex flex-col w-full max-w-xs space-y-4">
+                <button
+                  onClick={() => startGame(difficulty)}
+                  className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-bold shadow-lg shadow-indigo-200 hover:bg-indigo-700 transition-all active:scale-95"
+                >
+                  Next Level
+                </button>
+                <button
+                  onClick={() => setGameState('menu')}
+                  className="w-full py-4 bg-white text-slate-900 border border-slate-200 rounded-2xl font-bold hover:bg-slate-50 transition-all active:scale-95"
+                >
+                  Back to Menu
+                </button>
+              </div>
             </motion.div>
           )}
         </AnimatePresence>
