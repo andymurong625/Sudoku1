@@ -75,7 +75,28 @@ export default function App() {
 
   const toggleHint = () => {
     if (gameState !== 'playing' || isPaused) return;
-    setIsHintActive(!isHintActive);
+
+    if (!isHintActive) {
+      // Find a random empty cell to hint
+      const emptyCells: [number, number][] = [];
+      for (let r = 0; r < 9; r++) {
+        for (let c = 0; c < 9; c++) {
+          if (board[r][c] === null) {
+            emptyCells.push([r, c]);
+          }
+        }
+      }
+
+      if (emptyCells.length > 0) {
+        const randomCell = emptyCells[Math.floor(Math.random() * emptyCells.length)];
+        setHintedCell(randomCell);
+        setSelectedCell(randomCell);
+        setIsHintActive(true);
+      }
+    } else {
+      setIsHintActive(false);
+      setHintedCell(null);
+    }
   };
 
   useEffect(() => {
@@ -220,7 +241,7 @@ export default function App() {
 
     let bgColor = 'bg-white';
     if (isSelected) bgColor = 'bg-indigo-200';
-    else if (isHinted || (isHintActive && isSelected)) bgColor = 'bg-amber-100 animate-pulse';
+    else if (isHinted) bgColor = 'bg-amber-100 animate-pulse';
     else if (isSameValue) bgColor = 'bg-indigo-100';
     else if (isRelated) bgColor = 'bg-slate-50';
 
@@ -245,7 +266,7 @@ export default function App() {
       >
         {value !== null ? (
           value
-        ) : isHintActive && isSelected ? (
+        ) : (isHintActive && (isSelected || isHinted)) ? (
           <span className="text-amber-500 opacity-50">{solution[row][col]}</span>
         ) : (
           <div className="grid grid-cols-3 grid-rows-3 w-full h-full p-0.5">
