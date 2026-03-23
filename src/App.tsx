@@ -151,9 +151,29 @@ export default function App() {
       setBoard(newBoard);
 
       // Clear notes for this cell and related cells
-      const newNotes = [...notes];
+      const newNotes = notes.map(r => r.map(c => [...c]));
       newNotes[row][col] = [];
-      // Optional: remove this number from notes in same row/col/box
+
+      // Remove this number from notes in same row
+      for (let c = 0; c < 9; c++) {
+        newNotes[row][c] = newNotes[row][c].filter(n => n !== num);
+      }
+
+      // Remove this number from notes in same column
+      for (let r = 0; r < 9; r++) {
+        newNotes[r][col] = newNotes[r][col].filter(n => n !== num);
+      }
+
+      // Remove this number from notes in same 3x3 box
+      const startRow = row - (row % 3);
+      const startCol = col - (col % 3);
+      for (let r = 0; r < 3; r++) {
+        for (let c = 0; c < 3; c++) {
+          const currR = startRow + r;
+          const currC = startCol + c;
+          newNotes[currR][currC] = newNotes[currR][currC].filter(n => n !== num);
+        }
+      }
       setNotes(newNotes);
 
       // Check if won
