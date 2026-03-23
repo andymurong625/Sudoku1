@@ -265,7 +265,7 @@ export default function App() {
         ) : (
           <div className="grid grid-cols-3 grid-rows-3 w-full h-full p-0.5">
             {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(n => (
-              <div key={n} className="flex items-center justify-center text-[8px] sm:text-[10px] leading-none text-slate-400">
+              <div key={n} className="flex items-center justify-center text-[10px] sm:text-[13px] font-semibold leading-none text-slate-500">
                 {cellNotes.includes(n) ? n : ''}
               </div>
             ))}
