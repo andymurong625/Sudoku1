@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Trophy, RotateCcw, Play, Pause, AlertCircle, ChevronLeft, HelpCircle } from 'lucide-react';
 import { generateGame, Difficulty, Board, isValid } from './sudokuLogic';
@@ -18,6 +18,18 @@ export default function App() {
   const [isMarkMode, setIsMarkMode] = useState(false);
   const [notes, setNotes] = useState<number[][][]>(Array.from({ length: 9 }, () => Array.from({ length: 9 }, () => [])));
   const [isHintActive, setIsHintActive] = useState(false);
+
+  const numberCounts = useMemo(() => {
+    const counts = Array(10).fill(0);
+    board.forEach(row => {
+      row.forEach(cell => {
+        if (cell !== null) {
+          counts[cell]++;
+        }
+      });
+    });
+    return counts;
+  }, [board]);
 
   // Load game from localStorage on mount
   useEffect(() => {
@@ -126,6 +138,16 @@ export default function App() {
 
   const handleNumberInput = useCallback((num: number, forceMark?: boolean) => {
     if (!selectedCell || gameState !== 'playing' || isPaused) return;
+
+    // Check if number is already completed (9 times on board)
+    const counts = Array(10).fill(0);
+    board.forEach(row => {
+      row.forEach(cell => {
+        if (cell !== null) counts[cell]++;
+      });
+    });
+    if (counts[num] >= 9) return;
+
     const [row, col] = selectedCell;
 
     if (initialBoard[row][col] !== null) return;
@@ -428,15 +450,19 @@ export default function App() {
                 <div className="grid grid-cols-9 gap-2">
                   {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => {
                     const isAutoHighlighted = getAutoHighlightNumber() === num;
+                    const isCompleted = numberCounts[num] >= 9;
                     return (
                       <button
                         key={num}
+                        disabled={isCompleted}
                         onClick={() => handleNumberInput(num, false)}
                         className={`
                           aspect-square flex items-center justify-center rounded-lg shadow-sm border transition-all active:scale-95 text-xl font-bold
-                          ${isAutoHighlighted 
-                            ? 'bg-amber-100 border-amber-400 text-amber-700 ring-2 ring-amber-200' 
-                            : 'bg-white border-slate-200 text-indigo-600 hover:bg-indigo-50 hover:border-indigo-300'}
+                          ${isCompleted 
+                            ? 'bg-slate-100 border-slate-200 text-slate-300 cursor-not-allowed opacity-50'
+                            : isAutoHighlighted 
+                              ? 'bg-amber-100 border-amber-400 text-amber-700 ring-2 ring-amber-200' 
+                              : 'bg-white border-slate-200 text-indigo-600 hover:bg-indigo-50 hover:border-indigo-300'}
                         `}
                       >
                         {num}
@@ -455,15 +481,19 @@ export default function App() {
                     >
                       {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => {
                         const isMarked = selectedCell && notes[selectedCell[0]][selectedCell[1]].includes(num);
+                        const isCompleted = numberCounts[num] >= 9;
                         return (
                           <button
                             key={`mark-${num}`}
+                            disabled={isCompleted}
                             onClick={() => handleNumberInput(num, true)}
                             className={`
                               aspect-square flex items-center justify-center rounded-lg border transition-all active:scale-95 text-sm font-medium
-                              ${isMarked 
-                                ? 'bg-indigo-100 border-indigo-400 text-indigo-700 ring-1 ring-indigo-200' 
-                                : 'bg-slate-100 border-slate-200 text-slate-500 hover:bg-slate-200'}
+                              ${isCompleted
+                                ? 'bg-slate-50 border-slate-100 text-slate-200 cursor-not-allowed opacity-40'
+                                : isMarked 
+                                  ? 'bg-indigo-100 border-indigo-400 text-indigo-700 ring-1 ring-indigo-200' 
+                                  : 'bg-slate-100 border-slate-200 text-slate-500 hover:bg-slate-200'}
                             `}
                           >
                             {num}
