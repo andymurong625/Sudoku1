@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Trophy, RotateCcw, Play, Pause, AlertCircle, ChevronLeft, HelpCircle } from 'lucide-react';
-import { generateGame, Difficulty, Board, isValid } from './sudokuLogic';
+import { generateGame, Difficulty, Board, isValid, getHint, Hint } from './sudokuLogic';
 
 export default function App() {
   const [gameState, setGameState] = useState<'menu' | 'playing' | 'won' | 'lost'>('menu');
@@ -18,6 +18,7 @@ export default function App() {
   const [isMarkMode, setIsMarkMode] = useState(false);
   const [notes, setNotes] = useState<number[][][]>(Array.from({ length: 9 }, () => Array.from({ length: 9 }, () => [])));
   const [isHintActive, setIsHintActive] = useState(false);
+  const [hintReason, setHintReason] = useState<string | null>(null);
 
   const numberCounts = useMemo(() => {
     const counts = Array(10).fill(0);
@@ -82,32 +83,58 @@ export default function App() {
     setSelectedCell(null);
     setHintedCell(null);
     setIsHintActive(false);
+    setHintReason(null);
     setNotes(Array.from({ length: 9 }, () => Array.from({ length: 9 }, () => [])));
+  };
+
+  const autoFillNotes = () => {
+    if (gameState !== 'playing' || isPaused) return;
+    const newNotes = Array.from({ length: 9 }, () => Array.from({ length: 9 }, () => [] as number[]));
+    for (let r = 0; r < 9; r++) {
+      for (let c = 0; c < 9; c++) {
+        if (board[r][c] === null) {
+          for (let num = 1; num <= 9; num++) {
+            if (isValid(board, r, c, num)) {
+              newNotes[r][c].push(num);
+            }
+          }
+        }
+      }
+    }
+    setNotes(newNotes);
+    setIsMarkMode(true);
   };
 
   const toggleHint = () => {
     if (gameState !== 'playing' || isPaused) return;
 
     if (!isHintActive) {
-      // Find a random empty cell to hint
-      const emptyCells: [number, number][] = [];
-      for (let r = 0; r < 9; r++) {
-        for (let c = 0; c < 9; c++) {
-          if (board[r][c] === null) {
-            emptyCells.push([r, c]);
+      const hint = getHint(board);
+      if (hint) {
+        setHintedCell([hint.row, hint.col]);
+        setSelectedCell([hint.row, hint.col]);
+        setHintReason(hint.reason);
+        setIsHintActive(true);
+      } else {
+        // Fallback to random if no logic found
+        const emptyCells: [number, number][] = [];
+        for (let r = 0; r < 9; r++) {
+          for (let c = 0; c < 9; c++) {
+            if (board[r][c] === null) emptyCells.push([r, c]);
           }
         }
-      }
-
-      if (emptyCells.length > 0) {
-        const randomCell = emptyCells[Math.floor(Math.random() * emptyCells.length)];
-        setHintedCell(randomCell);
-        setSelectedCell(randomCell);
-        setIsHintActive(true);
+        if (emptyCells.length > 0) {
+          const randomCell = emptyCells[Math.floor(Math.random() * emptyCells.length)];
+          setHintedCell(randomCell);
+          setSelectedCell(randomCell);
+          setHintReason("随机提示：当前局面可能需要更高级的解题技巧，建议先尝试其他位置。");
+          setIsHintActive(true);
+        }
       }
     } else {
       setIsHintActive(false);
       setHintedCell(null);
+      setHintReason(null);
     }
   };
 
@@ -197,6 +224,9 @@ export default function App() {
         }
       }
       setNotes(newNotes);
+      setIsHintActive(false);
+      setHintReason(null);
+      setHintedCell(null);
 
       // Check if won
       const isWon = newBoard.every((r, ri) => r.every((c, ci) => c === solution[ri][ci]));
@@ -447,6 +477,20 @@ export default function App() {
               </div>
 
               <div className="space-y-4 max-w-[500px] mx-auto">
+                <AnimatePresence>
+                  {isHintActive && hintReason && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: 10 }}
+                      className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs sm:text-sm text-amber-800 flex items-start space-x-2"
+                    >
+                      <HelpCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                      <p>{hintReason}</p>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
                 <div className="grid grid-cols-9 gap-2">
                   {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => {
                     const isAutoHighlighted = getAutoHighlightNumber() === num;
@@ -527,6 +571,13 @@ export default function App() {
                 >
                   <HelpCircle className="w-4 h-4" />
                   <span>Hint</span>
+                </button>
+                <button
+                  onClick={autoFillNotes}
+                  className="flex items-center space-x-2 px-4 py-2 bg-white text-slate-500 border border-slate-200 rounded-full hover:border-indigo-300 transition-all font-medium"
+                >
+                  <HelpCircle className="w-4 h-4" />
+                  <span>Auto-Notes</span>
                 </button>
                 <button
                   onClick={() => startGame(difficulty)}
