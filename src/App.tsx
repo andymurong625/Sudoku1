@@ -311,16 +311,24 @@ export default function App() {
       (Math.floor(selectedCell[0] / 3) === Math.floor(row / 3) && Math.floor(selectedCell[1] / 3) === Math.floor(col / 3))
     );
 
-    const isSameValue = selectedCell && value !== null && board[selectedCell[0]][selectedCell[1]] === value;
+    const selectedValue = selectedCell ? board[selectedCell[0]][selectedCell[1]] : null;
+    const isSameValue = selectedValue !== null && value === selectedValue;
+    const isNoteMatch = selectedValue !== null && value === null && cellNotes.includes(selectedValue);
 
     let bgColor = 'bg-white';
+    let textColor = isInitial ? 'text-slate-900 font-bold' : 'text-indigo-600';
+
     if (isSelected) {
-      bgColor = 'bg-indigo-300';
+      bgColor = 'bg-indigo-600';
+      textColor = 'text-white font-bold';
     } else if (isHinted) {
       bgColor = 'bg-amber-100 animate-pulse';
     } else if (isSameValue) {
-      bgColor = isInitial ? 'bg-indigo-100' : 'bg-indigo-200';
-    } else if (isRelated) {
+      bgColor = 'bg-indigo-500'; // 已经填写的数字1：深蓝色 (Deep Blue)
+      textColor = 'text-white font-bold';
+    } else if (isNoteMatch) {
+      bgColor = 'bg-indigo-100'; // 包含1的笔记格：浅蓝色 (Light Blue)
+    } else if (isRelated && selectedValue === null) {
       bgColor = 'bg-indigo-50';
     }
 
@@ -332,7 +340,7 @@ export default function App() {
           relative flex items-center justify-center text-xl sm:text-2xl font-medium cursor-pointer
           transition-colors duration-100 aspect-square
           ${bgColor}
-          ${isInitial ? 'text-slate-900 font-bold' : 'text-indigo-600'}
+          ${textColor}
         `}
       >
         {value !== null ? (
