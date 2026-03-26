@@ -314,10 +314,15 @@ export default function App() {
     const isSameValue = selectedCell && value !== null && board[selectedCell[0]][selectedCell[1]] === value;
 
     let bgColor = 'bg-white';
-    if (isSelected) bgColor = 'bg-indigo-200';
-    else if (isHinted) bgColor = 'bg-amber-100 animate-pulse';
-    else if (isSameValue) bgColor = 'bg-indigo-100';
-    else if (isRelated) bgColor = 'bg-slate-50';
+    if (isSelected) {
+      bgColor = 'bg-indigo-300';
+    } else if (isHinted) {
+      bgColor = 'bg-amber-100 animate-pulse';
+    } else if (isSameValue) {
+      bgColor = isInitial ? 'bg-indigo-100' : 'bg-indigo-200';
+    } else if (isRelated) {
+      bgColor = 'bg-indigo-50';
+    }
 
     return (
       <div
