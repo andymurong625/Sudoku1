@@ -335,3 +335,26 @@ export function generateGame(difficulty: Difficulty): { initial: Board; solution
 
   return { initial: gameBoard, solution: fullBoard };
 }
+
+/**
+ * Serializes a board to a string of digits (0 for null).
+ */
+export function serializeBoard(board: Board): string {
+  return board.flat().map(cell => cell === null ? '0' : cell.toString()).join('');
+}
+
+/**
+ * Deserializes a string of digits back into a Board.
+ */
+export function deserializeBoard(data: string): Board {
+  const board: Board = [];
+  for (let i = 0; i < 9; i++) {
+    const row: (number | null)[] = [];
+    for (let j = 0; j < 9; j++) {
+      const val = parseInt(data[i * 9 + j]);
+      row.push(val === 0 ? null : val);
+    }
+    board.push(row);
+  }
+  return board;
+}
