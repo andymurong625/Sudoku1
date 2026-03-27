@@ -324,10 +324,10 @@ export default function App() {
     } else if (isHinted) {
       bgColor = 'bg-amber-100 animate-pulse';
     } else if (isSameValue) {
-      bgColor = 'bg-indigo-500'; // 已经填写的数字1：深蓝色 (Deep Blue)
+      bgColor = 'bg-indigo-500'; // 统一深蓝色：所有已填写的相同数字
       textColor = 'text-white font-bold';
     } else if (isNoteMatch) {
-      bgColor = 'bg-indigo-100'; // 包含1的笔记格：浅蓝色 (Light Blue)
+      bgColor = 'bg-indigo-100'; // 包含选中数字的笔记格：浅蓝色
     } else if (isRelated && selectedValue === null) {
       bgColor = 'bg-indigo-50';
     }
@@ -341,6 +341,7 @@ export default function App() {
           transition-colors duration-100 aspect-square
           ${bgColor}
           ${textColor}
+          ${isSelected ? 'ring-2 ring-inset ring-white/20 z-10' : ''}
         `}
       >
         {value !== null ? (
@@ -350,7 +351,10 @@ export default function App() {
         ) : (
           <div className="grid grid-cols-3 grid-rows-3 w-full h-full p-0.5">
             {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(n => (
-              <div key={n} className="flex items-center justify-center text-[10px] sm:text-[13px] font-semibold leading-none text-slate-500">
+              <div
+                key={n}
+                className={`flex items-center justify-center text-[10px] sm:text-[13px] font-semibold leading-none ${isSelected ? 'text-white' : 'text-slate-500'}`}
+              >
                 {cellNotes.includes(n) ? n : ''}
               </div>
             ))}
